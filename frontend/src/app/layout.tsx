@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
 
 export const metadata: Metadata = {
-  title: 'OmniChat Admin Dashboard | by Burlux',
+  title: 'Omni Admin by Burlux',
   description: 'Manage your intelligent, grounded WhatsApp AI Assistant seamlessly.',
 };
 
