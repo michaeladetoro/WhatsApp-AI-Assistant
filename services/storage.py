@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Optional
+from datetime import datetime, timedelta, date
 
 import asyncpg
 
@@ -211,6 +212,43 @@ class BotStorage:
             logger.warning(f"list_kb_documents failed: {e}")
             return []
 
+    async def get_dashboard_analytics(self) -> dict:
+        """Return basic analytics for the dashboard."""
+        default_resp = {"total_messages": 0, "unique_users": 0, "total_documents": 0, "chart_data": []}
+        if not self._pool:
+            return default_resp
+        try:
+            async with self._pool.acquire() as conn:
+                total_messages = await conn.fetchval("SELECT COUNT(*) FROM messages")
+                unique_users = await conn.fetchval("SELECT COUNT(DISTINCT user_id) FROM messages")
+                total_documents = await conn.fetchval("SELECT COUNT(*) FROM kb_documents")
+                
+                chart_rows = await conn.fetch(
+                    "SELECT DATE(created_at) as date, COUNT(*) as count FROM messages WHERE created_at >= NOW() - INTERVAL '6 days' GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC"
+                )
+                
+            db_chart_data = {r["date"]: r["count"] for r in chart_rows} if chart_rows else {}
+            
+            today = date.today()
+            chart_data = []
+            for i in range(6, -1, -1):
+                d = today - timedelta(days=i)
+                chart_data.append({
+                    "date": d.isoformat(),
+                    "day_label": d.strftime("%a"),
+                    "count": db_chart_data.get(d, 0)
+                })
+
+            return {
+                "total_messages": total_messages or 0,
+                "unique_users": unique_users or 0,
+                "total_documents": total_documents or 0,
+                "chart_data": chart_data,
+            }
+        except Exception as e:
+            logger.error(f"get_dashboard_analytics failed: {e}")
+            return default_resp
+
     async def get_all_kb_content(self) -> List[dict]:
         """
         Return all KB documents with their text content.
@@ -253,6 +291,24 @@ class BotStorage:
         except Exception as e:
             logger.error(f"delete_kb_document failed: {e}")
             return None
+
+    async def rename_kb_document(self, doc_id: int, new_filename: str) -> bool:
+        """Rename a single KB document by ID. Returns True if renamed, False if not found."""
+        if not self._pool:
+            return False
+        try:
+            async with self._pool.acquire() as conn:
+                status = await conn.execute(
+                    "UPDATE kb_documents SET filename = $1, title = $1 WHERE id = $2", new_filename, doc_id
+                )
+            updated = status.startswith("UPDATE") and status != "UPDATE 0"
+            if updated:
+                logger.info(f"KB document {doc_id} renamed to '{new_filename}' in database.")
+            return updated
+        except Exception as e:
+            logger.error(f"rename_kb_document failed: {e}")
+            return False
+
 
     async def clear_all_kb_documents(self) -> int:
         """Delete all documents in the knowledge base. Returns number of deleted rows."""

@@ -6,7 +6,7 @@ from typing import Optional, Union
 
 import httpx
 import uvicorn
-from fastapi import Depends, FastAPI, File, HTTPException, Security, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Security, UploadFile, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pywa_async import WhatsApp, filters, types
 
@@ -317,6 +317,19 @@ async def ingest_document(
         "characters_extracted": len(text),
     }
 
+@app.get(
+    "/kb/analytics",
+    summary="Get basic analytics for the dashboard",
+    tags=["Admin: Knowledge Base"],
+    dependencies=[Depends(_require_kb_auth)],
+)
+async def kb_analytics():
+    """
+    Return basic analytics for the dashboard.
+    """
+    analytics = await storage.get_dashboard_analytics()
+    return analytics
+
 
 @app.get(
     "/kb/status",
@@ -373,33 +386,6 @@ async def kb_rebuild():
 
 
 @app.delete(
-    "/kb/{document_id}",
-    summary="Remove a document from the knowledge base",
-    tags=["Admin: Knowledge Base"],
-    dependencies=[Depends(_require_kb_auth)],
-)
-async def kb_delete(document_id: int):
-    """
-    Delete a document from Postgres by its ID.
-
-    **Important:** This removes the document record but does NOT automatically
-    update the FAISS index. Call `POST /kb/rebuild` after deleting documents
-    to apply the change to the vector index.
-    """
-    deleted_title = await storage.delete_kb_document(document_id)
-    if not deleted_title:
-        raise HTTPException(
-            status_code=404, detail=f"Document {document_id} not found."
-        )
-    return {
-        "status": "deleted",
-        "document_id": document_id,
-        "title": deleted_title,
-        "note": "Call POST /kb/rebuild to remove this document's vectors from the search index.",
-    }
-
-
-@app.delete(
     "/kb/messages",
     summary="Clear all conversation messages",
     tags=["Admin: Knowledge Base"],
@@ -428,6 +414,54 @@ async def kb_clear_all():
     kb_manager.rebuild_from_db([])  # Pass empty list to wipe index
     rag_handler.reload_index()
     return {"status": "success", "documents_deleted": deleted, "index_status": "wiped"}
+
+
+@app.patch(
+    "/kb/{document_id}",
+    summary="Rename a document in the knowledge base",
+    tags=["Admin: Knowledge Base"],
+    dependencies=[Depends(_require_kb_auth)],
+)
+async def kb_rename(document_id: int, request: Request):
+    """
+    Rename a document in Postgres by its ID.
+    """
+    body = await request.json()
+    new_filename = body.get("filename")
+    if not new_filename:
+        raise HTTPException(status_code=400, detail="Missing 'filename' in request body.")
+        
+    updated = await storage.rename_kb_document(document_id, new_filename)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Document {document_id} not found.")
+    return {"status": "renamed", "document_id": document_id, "new_filename": new_filename}
+
+
+@app.delete(
+    "/kb/{document_id}",
+    summary="Remove a document from the knowledge base",
+    tags=["Admin: Knowledge Base"],
+    dependencies=[Depends(_require_kb_auth)],
+)
+async def kb_delete(document_id: int):
+    """
+    Delete a document from Postgres by its ID.
+
+    **Important:** This removes the document record but does NOT automatically
+    update the FAISS index. Call `POST /kb/rebuild` after deleting documents
+    to apply the change to the vector index.
+    """
+    deleted_title = await storage.delete_kb_document(document_id)
+    if not deleted_title:
+        raise HTTPException(
+            status_code=404, detail=f"Document {document_id} not found."
+        )
+    return {
+        "status": "deleted",
+        "document_id": document_id,
+        "title": deleted_title,
+        "note": "Call POST /kb/rebuild to remove this document's vectors from the search index.",
+    }
 
 
 # ---------------------------------------------------------------------------
