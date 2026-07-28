@@ -1,4 +1,4 @@
-# WhatsApp RAG Assistant
+# WhatsApp AI Assistant
 
 A fast, highly scalable, and fully asynchronous WhatsApp AI assistant powered by Retrieval-Augmented Generation (RAG). This bot allows users to interact with a dynamic, constantly evolving knowledge base through both text and voice notes directly on WhatsApp.
 
