@@ -235,7 +235,7 @@ class BotStorage:
                 d = today - timedelta(days=i)
                 chart_data.append({
                     "date": d.isoformat(),
-                    "day_label": d.strftime("%a"),
+                    "day_label": d.strftime("%a %d/%m"),
                     "count": db_chart_data.get(d, 0)
                 })
 
