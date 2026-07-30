@@ -279,7 +279,7 @@ export default function Dashboard() {
                 <span className={styles.statValue}>{analytics.unique_users}</span>
               </div>
               <div className={`${styles.statCard} glass-panel`}>
-                <span className={styles.statLabel}>User Messages</span>
+                <span className={styles.statLabel}>User Queries</span>
                 <span className={styles.statValue}>{analytics.total_messages}</span>
               </div>
               <div className={`${styles.statCard} glass-panel`}>

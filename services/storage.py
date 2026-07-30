@@ -219,12 +219,12 @@ class BotStorage:
             return default_resp
         try:
             async with self._pool.acquire() as conn:
-                total_messages = await conn.fetchval("SELECT COUNT(*) FROM messages")
+                total_messages = await conn.fetchval("SELECT COUNT(*) FROM messages WHERE role = 'user'")
                 unique_users = await conn.fetchval("SELECT COUNT(DISTINCT user_id) FROM messages")
                 total_documents = await conn.fetchval("SELECT COUNT(*) FROM kb_documents")
                 
                 chart_rows = await conn.fetch(
-                    "SELECT DATE(created_at) as date, COUNT(*) as count FROM messages WHERE created_at >= NOW() - INTERVAL '6 days' GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC"
+                    "SELECT DATE(created_at) as date, COUNT(*) as count FROM messages WHERE role = 'user' AND created_at >= NOW() - INTERVAL '6 days' GROUP BY DATE(created_at) ORDER BY DATE(created_at) ASC"
                 )
                 
             db_chart_data = {r["date"]: r["count"] for r in chart_rows} if chart_rows else {}
