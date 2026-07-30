@@ -127,8 +127,8 @@ async def _typing(msg: Union[types.Message, types.CallbackButton]) -> asyncio.Ta
         while True:
             try:
                 await msg.indicate_typing()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Typing indicator error: {e}")
             await asyncio.sleep(4)
 
     return asyncio.create_task(_loop())

@@ -3,3 +3,5 @@ buildbot/
 .env
 data/faiss_index/
 logs/
+privacy_policy.txt
+META_SETUP_README.md
